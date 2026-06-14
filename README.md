@@ -77,3 +77,9 @@ infotact/
 
 - [Project 1 README](project-1-contextual-predictive-maintenance/README.md)
 - [Project 3 README](project-3-geospatial-real-estate-valuation/README.md)
+
+---
+
+## Team Workflow
+
+See [TEAM_WORKFLOW.md](TEAM_WORKFLOW.md) for simple daily Git commands and the full issue list (#1-#24).
