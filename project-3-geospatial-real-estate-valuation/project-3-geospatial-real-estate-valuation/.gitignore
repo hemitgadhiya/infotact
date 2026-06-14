@@ -1,0 +1,10 @@
+# Geospatial Real Estate Valuation Project Git Ignore Rules
+
+# Data and Models directories
+data/
+models/
+
+# Jupyter Notebook outputs and checkpoints
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+notebooks/outputs/
