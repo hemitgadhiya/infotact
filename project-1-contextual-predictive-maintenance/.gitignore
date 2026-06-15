@@ -1,0 +1,8 @@
+# Project 1 artifact ignores
+project-1-contextual-predictive-maintenance/data/
+project-1-contextual-predictive-maintenance/models/
+project-1-contextual-predictive-maintenance/notebooks/.ipynb_checkpoints/
+
+# Common notebook outputs
+*.nbconvert.ipynb
+.ipynb_checkpoints/
