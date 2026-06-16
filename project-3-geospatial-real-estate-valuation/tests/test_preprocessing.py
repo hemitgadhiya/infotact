@@ -1,10 +1,10 @@
 import os
 import unittest
-import pandas as pd
-import geopandas as gpd
-import numpy as np
-from shapely.geometry import Point
-from src.data_preprocessing import preprocess_data
+import pandas as pd  # pyrefly: ignore
+import geopandas as gpd  # pyrefly: ignore
+import numpy as np  # pyrefly: ignore
+from shapely.geometry import Point  # pyrefly: ignore
+from src.data_preprocessing import preprocess_data  # pyrefly: ignore
 
 class TestDataPreprocessing(unittest.TestCase):
     def setUp(self):

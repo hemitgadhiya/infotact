@@ -1,0 +1,12 @@
+[project]
+python_version = "3.11"
+search_path = [
+  ".",
+  "src"
+]
+site_package_path = [
+  "project-3-geospatial-real-estate-valuation/.venv/Lib/site-packages"
+]
+project_includes = ["src", "tests"]
+ignore_missing_type_stubs = true
+ignore_errors = ["untyped-import", "missing-module-source", "missing-module"]

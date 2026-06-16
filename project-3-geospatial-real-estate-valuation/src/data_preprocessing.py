@@ -1,8 +1,7 @@
 import os
 import pandas as pd
-import geopandas as gpd
+import geopandas as gpd  # pyrefly: ignore
 import numpy as np
-from shapely.geometry import Point
 
 def preprocess_data(raw_data_path, processed_data_path):
     """
