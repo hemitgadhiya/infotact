@@ -103,6 +103,19 @@ The goal is to accurately predict mechanical failures **before they happen** usi
 
 ---
 
+## Simulated Contextual Data for Predictive Maintenance
+
+Contextual data includes external environmental and operational signals that affect equipment health but are not captured by internal machine sensors alone. In predictive maintenance, these features help explain why a machine may degrade faster during hot, humid, or high-load factory conditions.
+
+In this project, the simulated external dataset includes:
+- `ambient_temperature` (°C): environmental temperature around the equipment
+- `humidity` (%): relative humidity in the facility or surrounding area
+- `factory_load` (%): production or operational load that influences stress on machines
+
+This external context is generated with a fixed random seed so it is reproducible and ready to be merged by timestamp with IoT telemetry in later development steps.
+
+---
+
 ## Key Technical Reminders
 
 - **Never apply SMOTE globally** - only inside training folds per CV split to avoid leakage.
