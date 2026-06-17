@@ -8,6 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 from src.download_data import download_dataset  # pyrefly: ignore
 from src.data_preprocessing import preprocess_data  # pyrefly: ignore
 from src.feature_engineering import engineer_features  # pyrefly: ignore
+from src.model_training import train_valuation_model  # pyrefly: ignore
 
 def main():
     # Paths
@@ -48,7 +49,12 @@ def main():
     df_eng_to_save = pd.DataFrame(gdf_eng_to_save.drop(columns='geometry'))
     df_eng_to_save.to_csv(engineered_csv_path, index=False)
     
-    # 4. Print verification statistics
+    # 4. Train XGBoost baseline model on tabular features
+    print("\nTraining baseline XGBoost regressor...")
+    metrics = train_valuation_model(df_eng_to_save, os.path.join(project_root, 'models', 'xgboost_regressor.pkl'))
+    print(f"Baseline metrics: MAPE={metrics['mape']:.4f}, RMSE={metrics['rmse']:.4f}")
+    
+    # 5. Print verification statistics
     print("\n--- Pipeline Verification Summary ---")
     print(f"Total rows in processed dataset: {gdf_engineered.shape[0]}")
     
