@@ -3,7 +3,7 @@ import joblib
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_percentage_error, mean_squared_error
+from sklearn.metrics import mean_absolute_percentage_error, mean_squared_error, root_mean_squared_error
 import xgboost as xgb
 
 
@@ -26,7 +26,7 @@ def train_valuation_model(features_df: pd.DataFrame, model_save_path: str):
     os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
 
     # Drop non‑numeric / geometry columns if present
-    drop_cols = [col for col in ["geometry", "lat", "long", "zipcode"] if col in features_df.columns]
+    drop_cols = [col for col in ["geometry", "lat", "long", "zipcode", "id", "date"] if col in features_df.columns]
     df = features_df.drop(columns=drop_cols)
 
     # Target column must exist
@@ -59,7 +59,7 @@ def train_valuation_model(features_df: pd.DataFrame, model_save_path: str):
 
     # Evaluation metrics
     mape = mean_absolute_percentage_error(y_test, preds)
-    rmse = mean_squared_error(y_test, preds, squared=False)
+    rmse = root_mean_squared_error(y_test, preds)
     print(f"Baseline XGBoost – MAPE: {mape:.4f}, RMSE: {rmse:.4f}")
 
     # Persist the model
