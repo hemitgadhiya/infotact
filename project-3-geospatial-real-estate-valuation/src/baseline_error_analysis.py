@@ -21,7 +21,9 @@ HOLDOUT_RANDOM_STATE = 42
 HOLDOUT_TEST_SIZE = 0.2
 
 
-def prepare_holdout_frame(features_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
+def prepare_holdout_frame(
+    features_df: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, pd.DataFrame]:
     """Split engineered features into train/test sets with holdout metadata."""
     if "price_normalized" not in features_df.columns:
         raise KeyError("'price_normalized' column not found in features DataFrame")
@@ -39,7 +41,7 @@ def prepare_holdout_frame(features_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.S
     y = features_df["price_normalized"]
     meta = features_df[meta_cols]
 
-    X_train, X_test, y_train, y_test, meta_train, meta_test = train_test_split(
+    return train_test_split(
         X,
         y,
         meta,
@@ -47,8 +49,48 @@ def prepare_holdout_frame(features_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.S
         random_state=HOLDOUT_RANDOM_STATE,
     )
 
-    return (
-        pd.concat([X_train, y_train], axis=1),
-        y_test,
-        meta_test.reset_index(drop=True),
+
+def compute_holdout_errors(features_df: pd.DataFrame) -> pd.DataFrame:
+    """Train the baseline model and return holdout predictions with row-level errors."""
+    import xgboost as xgb
+
+    X_train, X_test, y_train, y_test, meta_test = prepare_holdout_frame(features_df)
+
+    model = xgb.XGBRegressor(
+        objective="reg:squarederror",
+        n_estimators=100,
+        learning_rate=0.1,
+        max_depth=6,
+        n_jobs=-1,
+        random_state=HOLDOUT_RANDOM_STATE,
+        verbosity=0,
     )
+    model.fit(X_train, y_train)
+    predictions = model.predict(X_test)
+
+    errors = meta_test.copy()
+    errors["actual_price"] = y_test.values
+    errors["predicted_price"] = predictions
+    errors["absolute_error"] = (errors["actual_price"] - errors["predicted_price"]).abs()
+    errors["percentage_error"] = errors["absolute_error"] / errors["actual_price"].clip(lower=1)
+    return errors.reset_index(drop=True)
+
+
+def summarize_errors_by_zipcode(error_df: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate holdout errors at the ZIP-code level."""
+    summary = (
+        error_df.groupby("zipcode", as_index=False)
+        .agg(
+            listings=("actual_price", "count"),
+            mean_actual_price=("actual_price", "mean"),
+            mape=("percentage_error", "mean"),
+            mean_absolute_error=("absolute_error", "mean"),
+            median_absolute_error=("absolute_error", "median"),
+            mean_neighbor_ratio=("sqft_living_vs_neighbor_ratio", "mean"),
+            renovation_rate=("is_renovated", "mean"),
+        )
+        .sort_values("mape", ascending=False)
+        .reset_index(drop=True)
+    )
+    summary["mape_pct"] = summary["mape"] * 100
+    return summary
