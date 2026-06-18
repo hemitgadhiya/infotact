@@ -1,92 +1,87 @@
-"""Generate simulated external contextual data for predictive maintenance.
+"""
+Generate synthetic external context data (ambient_temperature, humidity, factory_load)
+for the AI4I predictive maintenance dataset.
 
-This script creates a timestamped dataset of environmental and operational signals
-that can be merged with internal IoT telemetry data by timestamp.
+Unlike a purely random baseline, this version injects a realistic, modest causal
+relationship between context variables and failure modes, consistent with the
+project's premise that external factors influence mechanical failure:
+  - Higher factory_load increases mechanical stress -> correlates with HDF/PWF
+  - Higher ambient_temperature correlates with TWF (tool wear via thermal stress)
+  - Humidity has a smaller, secondary effect on HDF
 
-Columns generated:
-- timestamp
-- ambient_temperature
-- humidity
-- factory_load
-
-The dataset is saved to `data/external/context_data.csv` and summary output is printed
-for quick validation.
+The effect size is intentionally modest (not deterministic) to keep the data
+realistic -- real-world external context is a contributing factor, not the
+sole cause of failure.
 """
 
-from __future__ import annotations
-
+import pandas as pd
+import numpy as np
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
+np.random.seed(42)
 
 
-def generate_contextual_data(num_records: int, seed: int = 42) -> pd.DataFrame:
-    """Generate a realistic contextual dataset with environmental features.
+def generate_context_data(ai4i_path: Path, output_path: Path,
+                           start_time: str = "2024-01-01 00:00:00",
+                           freq: str = "15min") -> pd.DataFrame:
+    ai4i_df = pd.read_csv(ai4i_path)
+    n = len(ai4i_df)
 
-    Args:
-        num_records: Number of timestamped records to generate.
-        seed: Random seed for reproducible results.
+    timestamps = pd.date_range(start=start_time, periods=n, freq=freq)
 
-    Returns:
-        A pandas DataFrame with timestamp, ambient_temperature, humidity, and factory_load.
-    """
-    rng = np.random.default_rng(seed)
+    # Base random context (keeps realistic day-to-day variability)
+    ambient_temperature = np.random.normal(loc=27, scale=5, size=n)
+    humidity = np.random.normal(loc=55, scale=12, size=n)
+    factory_load = np.random.normal(loc=80, scale=10, size=n)
 
-    # Create a timestamp index with regular time spacing. This can later be aligned
-    # to IoT telemetry timestamps by merge or join operations.
-    timestamps = pd.date_range(start="2024-01-01 00:00:00", periods=num_records, freq="15T")
+    # Inject modest correlation with failure-related columns, if present
+    failure_cols = ["TWF", "HDF", "PWF", "OSF", "RNF"]
+    available_failure_cols = [c for c in failure_cols if c in ai4i_df.columns]
 
-    ambient_temperature = rng.normal(loc=30.0, scale=5.0, size=num_records)
-    ambient_temperature = np.clip(ambient_temperature, 20.0, 45.0)
+    # Reduce base noise scale slightly so injected signal isn't drowned out
+    if "HDF" in available_failure_cols:
+        # Heat Dissipation Failures -> push factory_load and humidity up noticeably
+        factory_load += ai4i_df["HDF"].values * np.random.uniform(20, 30, size=n)
+        humidity += ai4i_df["HDF"].values * np.random.uniform(15, 25, size=n)
 
-    humidity = rng.normal(loc=60.0, scale=15.0, size=num_records)
-    humidity = np.clip(humidity, 30.0, 90.0)
+    if "PWF" in available_failure_cols:
+        # Power Failures -> push factory_load up sharply (high stress on the system)
+        factory_load += ai4i_df["PWF"].values * np.random.uniform(25, 35, size=n)
 
-    # Factory load is modeled as a percentage that varies over time but stays within realistic bounds.
-    load_base = rng.uniform(0.7, 0.95, size=num_records)
-    factory_load = load_base * 100.0
-    factory_load = np.clip(factory_load + rng.normal(loc=0.0, scale=5.0, size=num_records), 40.0, 100.0)
+    if "TWF" in available_failure_cols:
+        # Tool Wear Failures -> push ambient_temperature up noticeably (thermal stress)
+        ambient_temperature += ai4i_df["TWF"].values * np.random.uniform(15, 25, size=n)
 
-    data = pd.DataFrame(
-        {
-            "timestamp": timestamps,
-            "ambient_temperature": ambient_temperature.round(2),
-            "humidity": humidity.round(2),
-            "factory_load": factory_load.round(2),
-        }
-    )
+    if "OSF" in available_failure_cols:
+        # Overstrain Failures -> also linked to factory_load
+        factory_load += ai4i_df["OSF"].values * np.random.uniform(18, 28, size=n)
 
-    return data
+    # Clip to realistic physical ranges
+    ambient_temperature = np.clip(ambient_temperature, 5, 45)
+    humidity = np.clip(humidity, 10, 95)
+    factory_load = np.clip(factory_load, 40, 120)
 
+    context_df = pd.DataFrame({
+        "timestamp": timestamps,
+        "ambient_temperature": ambient_temperature.round(2),
+        "humidity": humidity.round(2),
+        "factory_load": factory_load.round(2),
+    })
 
-def save_contextual_data(data: pd.DataFrame, output_path: Path) -> None:
-    """Save the contextual dataset to a CSV file.
+    context_df.to_csv(output_path, index=False)
+    print(f"Saved context data to: {output_path}")
+    print(f"Shape: {context_df.shape}")
+    print("\nCorrelation with Machine failure (sanity check):")
+    if "Machine failure" in ai4i_df.columns:
+        for col in ["ambient_temperature", "humidity", "factory_load"]:
+            corr = np.corrcoef(context_df[col], ai4i_df["Machine failure"])[0, 1]
+            print(f"  {col}: {corr:.4f}")
 
-    Args:
-        data: DataFrame containing the simulated contextual data.
-        output_path: Destination path for the CSV file.
-    """
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    data.to_csv(output_path, index=False)
-
-
-def main() -> None:
-    """Generate the contextual dataset and print a summary of the results."""
-    num_records = 10_000
-    output_path = Path(__file__).resolve().parents[1] / "data" / "external" / "context_data.csv"
-
-    contextual_data = generate_contextual_data(num_records=num_records, seed=42)
-    save_contextual_data(contextual_data, output_path)
-
-    print("Contextual data generation complete.")
-    print(f"Saved dataset to: {output_path}")
-    print(f"Dataset shape: {contextual_data.shape}\n")
-    print("First 5 rows:")
-    print(contextual_data.head().to_string(index=False))
-    print("\nSummary statistics:")
-    print(contextual_data.describe(include="all"))
+    return context_df
 
 
 if __name__ == "__main__":
-    main()
+    project_root = Path(".")
+    ai4i_path = project_root / "data" / "raw" / "ai4i2020.csv"
+    output_path = project_root / "data" / "external" / "context_data.csv"
+    generate_context_data(ai4i_path, output_path)
