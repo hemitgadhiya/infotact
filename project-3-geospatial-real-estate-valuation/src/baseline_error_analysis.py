@@ -54,7 +54,7 @@ def compute_holdout_errors(features_df: pd.DataFrame) -> pd.DataFrame:
     """Train the baseline model and return holdout predictions with row-level errors."""
     import xgboost as xgb
 
-    X_train, X_test, y_train, y_test, meta_test = prepare_holdout_frame(features_df)
+    X_train, X_test, y_train, y_test, _meta_train, meta_test = prepare_holdout_frame(features_df)
 
     model = xgb.XGBRegressor(
         objective="reg:squarederror",

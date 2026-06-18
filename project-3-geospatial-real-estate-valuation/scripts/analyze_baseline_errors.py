@@ -29,6 +29,12 @@ def load_engineered_features(input_path: str) -> pd.DataFrame:
     return df
 
 
+def _format_zipcode(value) -> str:
+    if pd.isna(value):
+        return "unknown"
+    return str(int(float(value)))
+
+
 def build_markdown_report(
     zip_summary: pd.DataFrame,
     limitations: dict[str, pd.DataFrame],
@@ -70,7 +76,7 @@ def build_markdown_report(
 
     for _, row in high_error.iterrows():
         lines.append(
-            f"| {row['zipcode']} | {int(row['listings'])} | {row['mape_pct']:.2f} | "
+            f"| {_format_zipcode(row['zipcode'])} | {int(row['listings'])} | {row['mape_pct']:.2f} | "
             f"${row['mean_actual_price']:,.0f} | {row['renovation_rate'] * 100:.1f}% |"
         )
 
@@ -86,7 +92,7 @@ def build_markdown_report(
 
     for _, row in gentrifying.iterrows():
         lines.append(
-            f"| {row['zipcode']} | {int(row['listings'])} | {row['mape_pct']:.2f} | "
+            f"| {_format_zipcode(row['zipcode'])} | {int(row['listings'])} | {row['mape_pct']:.2f} | "
             f"{row['mean_neighbor_ratio']:.2f} | {row['renovation_rate'] * 100:.1f}% |"
         )
 
@@ -102,7 +108,7 @@ def build_markdown_report(
 
     for _, row in luxury.iterrows():
         lines.append(
-            f"| {row['zipcode']} | {int(row['listings'])} | {row['mape_pct']:.2f} | "
+            f"| {_format_zipcode(row['zipcode'])} | {int(row['listings'])} | {row['mape_pct']:.2f} | "
             f"${row['mean_actual_price']:,.0f} |"
         )
 
