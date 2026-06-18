@@ -94,3 +94,52 @@ def summarize_errors_by_zipcode(error_df: pd.DataFrame) -> pd.DataFrame:
     )
     summary["mape_pct"] = summary["mape"] * 100
     return summary
+
+
+def identify_limitation_neighborhoods(
+    zip_summary: pd.DataFrame,
+    high_mape_quantile: float = 0.90,
+    gentrification_mape_quantile: float = 0.75,
+    min_listings: int = 20,
+) -> dict[str, pd.DataFrame]:
+    """Flag ZIP codes where tabular XGBoost struggles most.
+
+    Gentrification proxy: elevated MAPE combined with higher-than-median
+    renovation activity and living-area mismatch vs neighbors.
+    """
+    eligible = zip_summary[zip_summary["listings"] >= min_listings].copy()
+    if eligible.empty:
+        raise ValueError("No ZIP codes meet the minimum listing threshold for analysis.")
+
+    mape_threshold = eligible["mape"].quantile(high_mape_quantile)
+    gentrification_mape_threshold = eligible["mape"].quantile(gentrification_mape_quantile)
+    renovation_threshold = eligible["renovation_rate"].median()
+    neighbor_ratio_threshold = eligible["mean_neighbor_ratio"].median()
+
+    high_error = eligible[eligible["mape"] >= mape_threshold].sort_values("mape", ascending=False)
+    gentrifying = eligible[
+        (eligible["mape"] >= gentrification_mape_threshold)
+        & (eligible["renovation_rate"] >= renovation_threshold)
+        & (eligible["mean_neighbor_ratio"] >= neighbor_ratio_threshold)
+    ].sort_values("mape", ascending=False)
+    luxury_stress = eligible[
+        (eligible["mean_actual_price"] >= eligible["mean_actual_price"].quantile(0.90))
+        & (eligible["mape"] >= eligible["mape"].median())
+    ].sort_values("mean_actual_price", ascending=False)
+
+    return {
+        "high_error_zipcodes": high_error,
+        "gentrification_proxy_zipcodes": gentrifying,
+        "luxury_market_zipcodes": luxury_stress,
+        "thresholds": pd.DataFrame(
+            [
+                {
+                    "high_mape_threshold_pct": mape_threshold * 100,
+                    "gentrification_mape_threshold_pct": gentrification_mape_threshold * 100,
+                    "renovation_rate_threshold": renovation_threshold,
+                    "neighbor_ratio_threshold": neighbor_ratio_threshold,
+                    "min_listings": min_listings,
+                }
+            ]
+        ),
+    }
