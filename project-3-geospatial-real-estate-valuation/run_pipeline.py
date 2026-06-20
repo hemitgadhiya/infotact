@@ -9,6 +9,7 @@ from src.download_data import download_dataset  # pyrefly: ignore
 from src.data_preprocessing import preprocess_data  # pyrefly: ignore
 from src.feature_engineering import engineer_features  # pyrefly: ignore
 from src.model_training import train_valuation_model  # pyrefly: ignore
+from src.graph_construction import build_knn_graph  # pyrefly: ignore
 
 def main():
     # Paths
@@ -22,6 +23,7 @@ def main():
     
     engineered_geojson_path = os.path.join(processed_data_dir, 'kc_house_data_engineered.geojson')
     engineered_csv_path = os.path.join(processed_data_dir, 'kc_house_data_engineered.csv')
+    knn_edges_path = os.path.join(processed_data_dir, 'kc_house_data_knn_edges.csv')
     
     # 1. Download data if it doesn't exist
     url = "https://raw.githubusercontent.com/jmatth11/King-County-House-Data-Set/master/kc_house_data.csv"
@@ -49,7 +51,14 @@ def main():
     df_eng_to_save = pd.DataFrame(gdf_eng_to_save.drop(columns='geometry'))
     df_eng_to_save.to_csv(engineered_csv_path, index=False)
     
-    # 4. Train XGBoost baseline model on tabular features
+    # 4. Build KNN Graph
+    print("\nStarting graph construction pipeline...")
+    graph_res = build_knn_graph(gdf_engineered, k=5)
+    edges_df = graph_res["edges_df"]
+    print(f"Saving KNN graph edges (K={graph_res['k_used']}) to {knn_edges_path}...")
+    edges_df.to_csv(knn_edges_path, index=False)
+    
+    # 5. Train XGBoost baseline model on tabular features
     print("\nTraining baseline XGBoost regressor...")
     metrics = train_valuation_model(df_eng_to_save, os.path.join(project_root, 'models', 'xgboost_regressor.pkl'))
     print(f"Baseline metrics: MAPE={metrics['mape']:.4f}, RMSE={metrics['rmse']:.4f}")
@@ -86,6 +95,7 @@ def main():
     print(f"  Cleaned CSV:        {os.path.exists(processed_csv_path)} ({os.path.getsize(processed_csv_path) / 1024 / 1024:.2f} MB)")
     print(f"  Engineered GeoJSON: {os.path.exists(engineered_geojson_path)} ({os.path.getsize(engineered_geojson_path) / 1024 / 1024:.2f} MB)")
     print(f"  Engineered CSV:     {os.path.exists(engineered_csv_path)} ({os.path.getsize(engineered_csv_path) / 1024 / 1024:.2f} MB)")
+    print(f"  KNN Graph Edges:    {os.path.exists(knn_edges_path)} ({os.path.getsize(knn_edges_path) / 1024 / 1024:.2f} MB)")
     print("\nVerification successful! Pipeline ran smoothly.")
 
 if __name__ == "__main__":
