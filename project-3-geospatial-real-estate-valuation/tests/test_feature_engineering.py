@@ -93,6 +93,32 @@ class TestFeatureEngineering(unittest.TestCase):
         self.assertEqual(df_feat.iloc[0]['sale_month'], 10)
         self.assertEqual(df_feat.iloc[0]['sale_quarter'], 4)
 
+    def test_engineer_features_edge_cases(self):
+        # Create mock data with 0 bedrooms and 0 bathrooms to check fallback logic
+        edge_data = pd.DataFrame({
+            'id': ['4'],
+            'date': ['2015-01-01 00:00:00'],
+            'bedrooms': [0],
+            'bathrooms': [0.0],
+            'sqft_living': [1000],
+            'sqft_lot': [3000],
+            'sqft_basement': [0],
+            'yr_built': [1950],
+            'yr_renovated': [0],
+            'lat': [47.5],
+            'long': [-122.4],
+            'sqft_living15': [1100],
+            'sqft_lot15': [3200]
+        })
+        df_feat = engineer_features(edge_data)
+        
+        # Verify bedrooms_per_bathroom fallback to bedrooms (0)
+        self.assertEqual(df_feat.iloc[0]['bedrooms_per_bathroom'], 0)
+        # Verify sqft_living_per_bedroom fallback to sqft_living (1000)
+        self.assertEqual(df_feat.iloc[0]['sqft_living_per_bedroom'], 1000)
+        # Verify sqft_living_per_bathroom fallback to sqft_living (1000)
+        self.assertEqual(df_feat.iloc[0]['sqft_living_per_bathroom'], 1000)
+
     def test_geodataframe_compatibility(self):
         # Test that passing a GeoDataFrame keeps the geometry and returns a GeoDataFrame
         gdf_feat = engineer_features(self.mock_gdf)
