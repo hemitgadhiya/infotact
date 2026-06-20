@@ -47,6 +47,12 @@ def build_knn_graph(
         if col not in df.columns:
             raise KeyError(f"Geospatial coordinate column '{col}' not found in DataFrame.")
 
+    # Validate coordinate ranges
+    if not df[lat_col].between(-90.0, 90.0).all():
+        raise ValueError("Latitude values must be between -90 and 90 degrees.")
+    if not df[long_col].between(-180.0, 180.0).all():
+        raise ValueError("Longitude values must be between -180 and 180 degrees.")
+
     # Determine unique identifiers
     if id_col in df.columns:
         node_ids = df[id_col].astype(str).values

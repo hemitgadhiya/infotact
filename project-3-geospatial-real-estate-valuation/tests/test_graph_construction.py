@@ -144,6 +144,29 @@ class TestGraphConstruction(unittest.TestCase):
         self.assertEqual(res_custom["k_used"], 1)
         self.assertEqual(len(res_custom["edges_df"]), 2)
 
+    def test_invalid_coordinate_ranges(self):
+        # Create a dataframe with out of bounds latitude (> 90)
+        invalid_lat_df = pd.DataFrame(
+            {
+                "id": ["house_A", "house_B"],
+                "lat": [95.0, 47.6101],
+                "long": [-122.3321, -122.2015],
+            }
+        )
+        with self.assertRaises(ValueError):
+            build_knn_graph(invalid_lat_df, k=1)
+
+        # Create a dataframe with out of bounds longitude (> 180)
+        invalid_long_df = pd.DataFrame(
+            {
+                "id": ["house_A", "house_B"],
+                "lat": [47.6062, 47.6101],
+                "long": [-190.0, -122.2015],
+            }
+        )
+        with self.assertRaises(ValueError):
+            build_knn_graph(invalid_long_df, k=1)
+
 
 if __name__ == "__main__":
     unittest.main()
