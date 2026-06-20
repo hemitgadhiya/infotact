@@ -1,8 +1,14 @@
 import numpy as np  # pyrefly: ignore
 import pandas as pd  # pyrefly: ignore
 import geopandas as gpd  # pyrefly: ignore
+from typing import Union
 
-def haversine_distance(lat1, lon1, lat2, lon2):
+def haversine_distance(
+    lat1: Union[float, pd.Series, np.ndarray],
+    lon1: Union[float, pd.Series, np.ndarray],
+    lat2: Union[float, pd.Series, np.ndarray],
+    lon2: Union[float, pd.Series, np.ndarray]
+) -> Union[float, pd.Series, np.ndarray]:
     """
     Calculate the great circle distance between two points
     on the earth (specified in decimal degrees)
@@ -21,7 +27,7 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     c = 2.0 * np.arcsin(np.sqrt(a))
     return r * c
 
-def engineer_features(df):
+def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     Generate standard and geospatial features from input dataframe.
     This includes:
@@ -104,7 +110,7 @@ def engineer_features(df):
     
     return df
 
-def engineer_geospatial_features(df):
+def engineer_geospatial_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     Generate spatial and geospatial features from input dataframe (e.g. distance to amenities, buffer zones).
     """
