@@ -121,11 +121,11 @@ Simple linear regression or tree-based models cannot natively process these geo-
 
 ## Deliverables Checklist
 
-- [ ] Cleaned geospatial dataset with lat/long coordinates
-- [ ] Interactive map visualizations (Folium / Kepler.gl)
-- [ ] Tabular feature engineering pipeline
-- [ ] XGBoost baseline with documented MAPE and RMSE
-- [ ] KNN neighborhood graph construction
+- [x] Cleaned geospatial dataset with lat/long coordinates
+- [x] Interactive map visualizations (Folium / Kepler.gl)
+- [x] Tabular feature engineering pipeline
+- [x] XGBoost baseline with documented MAPE and RMSE
+- [x] KNN neighborhood graph construction
 - [ ] Spatial embeddings for localized context
 - [ ] GNN or attention-based valuation model
 - [ ] MAPE comparison: spatial model vs. XGBoost baseline
@@ -133,3 +133,14 @@ Simple linear regression or tree-based models cannot natively process these geo-
 - [ ] Streamlit geospatial dashboard
 - [ ] Spatial heatmaps for investment strategist persona
 - [ ] 4 weeks of incremental GitHub commits with linked issues
+
+---
+
+## How to Run Tests
+
+To execute unit tests across the preprocessing, feature engineering, and graph construction modules, make sure you have the dependencies installed and run:
+
+```bash
+# Using pytest via python module
+python -m pytest
+```
