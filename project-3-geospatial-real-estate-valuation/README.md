@@ -126,8 +126,8 @@ Simple linear regression or tree-based models cannot natively process these geo-
 - [x] Tabular feature engineering pipeline
 - [x] XGBoost baseline with documented MAPE and RMSE
 - [x] KNN neighborhood graph construction
-- [ ] Spatial embeddings for localized context
-- [ ] GNN or attention-based valuation model
+- [x] Spatial embeddings for localized context
+- [x] GNN or attention-based valuation model
 - [ ] MAPE comparison: spatial model vs. XGBoost baseline
 - [ ] Top-5 influential neighbor explanations per prediction
 - [ ] Streamlit geospatial dashboard

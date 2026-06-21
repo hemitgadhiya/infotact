@@ -25,8 +25,9 @@ def train_valuation_model(features_df: pd.DataFrame, model_save_path: str):
     # Ensure output directory exists
     os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
 
-    # Drop non‑numeric / geometry columns if present
-    drop_cols = [col for col in ["geometry", "lat", "long", "zipcode", "id", "date"] if col in features_df.columns]
+    # Drop non-numeric / geometry columns and other price columns to prevent leakage
+    leakage_cols = ["geometry", "lat", "long", "zipcode", "id", "date", "price", "price_upper_cap", "is_price_outlier"]
+    drop_cols = [col for col in leakage_cols if col in features_df.columns]
     df = features_df.drop(columns=drop_cols)
 
     # Target column must exist

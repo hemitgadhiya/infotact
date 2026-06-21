@@ -2,14 +2,17 @@ import os
 import sys
 import pandas as pd  # pyrefly: ignore
 
-# Add src to the path
+# Add src and scripts to the path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'scripts')))
 
 from src.download_data import download_dataset  # pyrefly: ignore
 from src.data_preprocessing import preprocess_data  # pyrefly: ignore
 from src.feature_engineering import engineer_features  # pyrefly: ignore
 from src.model_training import train_valuation_model  # pyrefly: ignore
 from src.graph_construction import build_knn_graph  # pyrefly: ignore
+from train_spatial_model import train as train_spatial_model  # pyrefly: ignore
+from compare_models import main as compare_models_main  # pyrefly: ignore
 
 def main():
     # Paths
@@ -63,6 +66,14 @@ def main():
     metrics = train_valuation_model(df_eng_to_save, os.path.join(project_root, 'models', 'xgboost_regressor.pkl'))
     print(f"Baseline metrics: MAPE={metrics['mape']:.4f}, RMSE={metrics['rmse']:.4f}")
     
+    # 6. Train PyTorch Spatial Attention model
+    print("\nTraining Spatial Attention model (PyTorch)...")
+    train_spatial_model()
+    
+    # 7. Compare models
+    print("\nComparing baseline and spatial models...")
+    compare_models_main()
+    
     # 5. Print verification statistics
     print("\n--- Pipeline Verification Summary ---")
     print(f"Total rows in processed dataset: {gdf_engineered.shape[0]}")
@@ -90,12 +101,16 @@ def main():
     print(f"Mean Distance to Bellevue Center: {mean_dist_bellevue:.2f} km")
     
     # Verify file existence
+    spatial_model_path = os.path.join(project_root, 'models', 'spatial_attention_model.pth')
+    model_comparison_path = os.path.join(project_root, 'docs', 'model_comparison.md')
     print(f"\nChecking outputs:")
     print(f"  Cleaned GeoJSON:    {os.path.exists(processed_geojson_path)} ({os.path.getsize(processed_geojson_path) / 1024 / 1024:.2f} MB)")
     print(f"  Cleaned CSV:        {os.path.exists(processed_csv_path)} ({os.path.getsize(processed_csv_path) / 1024 / 1024:.2f} MB)")
     print(f"  Engineered GeoJSON: {os.path.exists(engineered_geojson_path)} ({os.path.getsize(engineered_geojson_path) / 1024 / 1024:.2f} MB)")
     print(f"  Engineered CSV:     {os.path.exists(engineered_csv_path)} ({os.path.getsize(engineered_csv_path) / 1024 / 1024:.2f} MB)")
     print(f"  KNN Graph Edges:    {os.path.exists(knn_edges_path)} ({os.path.getsize(knn_edges_path) / 1024 / 1024:.2f} MB)")
+    print(f"  Spatial Model Pth:  {os.path.exists(spatial_model_path)} ({os.path.getsize(spatial_model_path) / 1024 / 1024:.2f} MB if it exists else 0 MB)")
+    print(f"  Comparison Report:  {os.path.exists(model_comparison_path)}")
     print("\nVerification successful! Pipeline ran smoothly.")
 
 if __name__ == "__main__":
