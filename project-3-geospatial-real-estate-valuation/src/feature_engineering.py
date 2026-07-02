@@ -45,7 +45,7 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     if not pd.api.types.is_datetime64_any_dtype(df['date']):
         df['date'] = pd.to_datetime(df['date'])
         
-    sale_year = df['date'].dt.year
+    sale_year = pd.DatetimeIndex(df['date']).year
     
     # 2. Age & Renovation Features
     # House age at the time of sale
@@ -105,8 +105,8 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     
     # 6. Seasonality Features
     df['sale_year'] = sale_year
-    df['sale_month'] = df['date'].dt.month
-    df['sale_quarter'] = df['date'].dt.quarter
+    df['sale_month'] = pd.DatetimeIndex(df['date']).month
+    df['sale_quarter'] = pd.DatetimeIndex(df['date']).quarter
     
     return df
 

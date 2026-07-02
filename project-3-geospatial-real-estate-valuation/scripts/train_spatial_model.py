@@ -56,7 +56,7 @@ SCALER_SAVE_PATH = os.path.join(PROJECT_ROOT, "models",
 
 # ─────────────────────────── data helpers ────────────────────────
 
-def load_features(csv_path: str) -> tuple[pd.DataFrame, np.ndarray, np.ndarray, list[str]]:
+def load_features(csv_path: str) -> tuple[pd.DataFrame, np.ndarray, np.ndarray, np.ndarray, list[str]]:
     """Load and split engineered features into X / y arrays."""
     df = pd.read_csv(csv_path)
 
@@ -161,7 +161,7 @@ def train() -> None:
 
     # ── 4. Build adjacency and neighbor tensors ──
     adj = build_neighbor_index(ids, KNN_EDGES_CSV, K_NEIGHBORS)
-    id_to_idx = {str(pid): i for i, pid in enumerate(ids)}
+    id_to_idx = {pid: i for i, pid in enumerate(ids)}
 
     print(f"Building neighbor tensors (K={K_NEIGHBORS})...")
     neighbor_features, neighbor_mask = make_neighbor_tensor(
