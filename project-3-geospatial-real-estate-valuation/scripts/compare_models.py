@@ -54,6 +54,9 @@ def load_data():
     df = pd.read_csv(ENGINEERED_CSV)
     ids = df["id"].astype(str).values if "id" in df.columns else np.arange(len(df)).astype(str)
     drop = [c for c in DROP_COLS if c in df.columns]
+    # Drop spatial features/embeddings to match original model features and prevent shape mismatches
+    spatial_cols = [c for c in df.columns if c.startswith("spatial_emb_") or c.startswith("local_")]
+    drop.extend(spatial_cols)
     feature_cols = [c for c in df.columns if c not in drop and c != TARGET_COL]
     X = df[feature_cols].values.astype(np.float32)
     y = df[TARGET_COL].values.astype(np.float32)

@@ -61,6 +61,10 @@ def load_features(csv_path: str) -> tuple[pd.DataFrame, np.ndarray, np.ndarray, 
     df = pd.read_csv(csv_path)
 
     drop = [c for c in DROP_COLS if c in df.columns]
+    # Drop spatial features/embeddings to prevent 2-hop target leakage in GNN/Attention
+    spatial_cols = [c for c in df.columns if c.startswith("spatial_emb_") or c.startswith("local_")]
+    drop.extend(spatial_cols)
+    
     feature_cols = [c for c in df.columns if c not in drop and c != TARGET_COL]
 
     X = df[feature_cols].values.astype(np.float32)

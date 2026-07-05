@@ -7,7 +7,7 @@ from sklearn.metrics import mean_absolute_percentage_error, mean_squared_error, 
 import xgboost as xgb
 
 
-def train_valuation_model(features_df: pd.DataFrame, model_save_path: str):
+def train_valuation_model(features_df: pd.DataFrame, model_save_path: str, exclude_spatial: bool = True):
     """Train an XGBoost regressor on tabular features.
 
     Parameters
@@ -16,6 +16,8 @@ def train_valuation_model(features_df: pd.DataFrame, model_save_path: str):
         DataFrame containing engineered features and the target column ``price_normalized``.
     model_save_path: str
         File path where the trained model will be persisted (e.g. ``models/xgboost_regressor.pkl``).
+    exclude_spatial: bool, default True
+        If True, exclude spatial embeddings and raw neighborhood features.
 
     Returns
     -------
@@ -27,6 +29,12 @@ def train_valuation_model(features_df: pd.DataFrame, model_save_path: str):
 
     # Drop non-numeric / geometry columns and other price columns to prevent leakage
     leakage_cols = ["geometry", "lat", "long", "zipcode", "id", "date", "price", "price_upper_cap", "is_price_outlier"]
+    
+    if exclude_spatial:
+        # Exclude spatial features/embeddings to keep baseline purely tabular
+        spatial_cols = [col for col in features_df.columns if col.startswith("spatial_emb_") or col.startswith("local_")]
+        leakage_cols.extend(spatial_cols)
+    
     drop_cols = [col for col in leakage_cols if col in features_df.columns]
     df = features_df.drop(columns=drop_cols)
 

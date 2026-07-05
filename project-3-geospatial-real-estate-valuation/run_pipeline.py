@@ -11,6 +11,7 @@ from src.data_preprocessing import preprocess_data  # pyrefly: ignore
 from src.feature_engineering import engineer_features  # pyrefly: ignore
 from src.model_training import train_valuation_model  # pyrefly: ignore
 from src.graph_construction import build_knn_graph  # pyrefly: ignore
+from src.spatial_embeddings import generate_spatial_embeddings  # pyrefly: ignore
 from train_spatial_model import train as train_spatial_model  # pyrefly: ignore
 from compare_models import main as compare_models_main  # pyrefly: ignore
 
@@ -60,6 +61,43 @@ def main():
     edges_df = graph_res["edges_df"]
     print(f"Saving KNN graph edges (K={graph_res['k_used']}) to {knn_edges_path}...")
     edges_df.to_csv(knn_edges_path, index=False)
+    
+    # 4.5. Generate Spatial Embeddings
+    print("\nStarting spatial embeddings generation...")
+    spatial_embeddings_path = os.path.join(processed_data_dir, 'kc_house_data_spatial_embeddings.csv')
+    scaler_path = os.path.join(project_root, 'models', 'spatial_embedding_scaler.pkl')
+    pca_path = os.path.join(project_root, 'models', 'spatial_embedding_pca.pkl')
+    
+    emb_df, raw_feats_df = generate_spatial_embeddings(
+        df=gdf_engineered,
+        edges_df=edges_df,
+        n_components=8,
+        id_col="id",
+        price_col="price_normalized",
+        scaler_path=scaler_path,
+        pca_path=pca_path,
+    )
+    print(f"Saving spatial embeddings to {spatial_embeddings_path}...")
+    emb_df.to_csv(spatial_embeddings_path, index=False)
+    
+    # Merge embeddings and raw features into gdf_engineered
+    gdf_engineered['id'] = gdf_engineered['id'].astype(str)
+    emb_df['id'] = emb_df['id'].astype(str)
+    raw_feats_df['id'] = raw_feats_df['id'].astype(str)
+    
+    gdf_engineered = gdf_engineered.merge(emb_df, on='id', how='left')
+    gdf_engineered = gdf_engineered.merge(raw_feats_df, on='id', how='left')
+    
+    # Save the updated files containing spatial features
+    print(f"Updating engineered GeoJSON with spatial features to {engineered_geojson_path}...")
+    gdf_eng_to_save = gdf_engineered.copy()
+    if pd.api.types.is_datetime64_any_dtype(gdf_eng_to_save['date']):
+        gdf_eng_to_save['date'] = gdf_eng_to_save['date'].dt.strftime('%Y-%m-%d')
+    gdf_eng_to_save.to_file(engineered_geojson_path, driver='GeoJSON')
+    
+    print(f"Updating engineered CSV with spatial features to {engineered_csv_path}...")
+    df_eng_to_save = pd.DataFrame(gdf_eng_to_save.drop(columns='geometry'))
+    df_eng_to_save.to_csv(engineered_csv_path, index=False)
     
     # 5. Train XGBoost baseline model on tabular features
     print("\nTraining baseline XGBoost regressor...")
