@@ -184,6 +184,123 @@ def load_and_predict():
         
     return df
 
+
+@st.cache_data
+def get_neighbor_explanations(prop_id: str, top_k: int = 5) -> dict | None:
+    """
+    Extract the top-K most influential neighbors for a given property using
+    the Spatial Attention model's learned attention weights.
+
+    Returns a dict with:
+        'neighbors'     : list of property rows (dicts)
+        'attn_weights'  : list of float attention weights
+        'neighbor_ids'  : list of str property IDs
+        'subject_id'    : str property ID of the queried property
+    Returns None if the Spatial Attention model is unavailable.
+    """
+    if not (os.path.exists(SPATIAL_PATH) and os.path.exists(SCALER_PATH) and
+            SpatialAttentionRegressor is not None):
+        return None
+
+    # ── Load dataset ──────────────────────────────────────────────
+    df = pd.read_csv(ENGINEERED_CSV)
+    df["id"] = df["id"].astype(str)
+
+    if "zipcode" not in df.columns:
+        raw_csv_path = os.path.join(PROJECT_ROOT, "data", "raw", "kc_house_data.csv")
+        if os.path.exists(raw_csv_path):
+            raw_df = pd.read_csv(raw_csv_path, usecols=["id", "zipcode"])
+            raw_df["id"] = raw_df["id"].astype(str)
+            raw_df = raw_df.drop_duplicates(subset=["id"])
+            df = df.merge(raw_df, on="id", how="left")
+            df["zipcode"] = df["zipcode"].astype(str).fillna("Unknown")
+        else:
+            df["zipcode"] = "Unknown"
+
+    ids = df["id"].values
+    id_to_row = {str(pid): i for i, pid in enumerate(ids)}
+
+    if prop_id not in id_to_row:
+        return None
+
+    target_idx = id_to_row[prop_id]
+
+    # ── Prepare features ──────────────────────────────────────────
+    drop = [c for c in DROP_COLS if c in df.columns]
+    spatial_cols = [c for c in df.columns if c.startswith("spatial_emb_") or c.startswith("local_")]
+    feature_cols = [c for c in df.columns if c not in drop + spatial_cols and c != TARGET_COL]
+
+    X_raw = df[feature_cols].values.astype(np.float32)
+
+    scalers_dict = joblib.load(SCALER_PATH)
+    if isinstance(scalers_dict, dict):
+        spatial_scaler = scalers_dict["feature_scaler"]
+        y_mean = scalers_dict["y_mean"]
+        y_std  = scalers_dict["y_std"]
+    else:
+        spatial_scaler = scalers_dict
+        y_mean, y_std = 0.0, 1.0
+
+    X_scaled = spatial_scaler.transform(X_raw).astype(np.float32)
+
+    # ── Build neighbor adjacency ───────────────────────────────────
+    adj = build_neighbor_index(ids, KNN_EDGES_CSV, K_NEIGHBORS)
+    neighbor_features, neighbor_mask = make_neighbor_tensor(
+        X_scaled, id_to_row, ids, adj, K_NEIGHBORS
+    )
+
+    # ── Load model & run forward for the single target property ───
+    input_dim = X_scaled.shape[1]
+    model = SpatialAttentionRegressor(input_dim=input_dim, hidden_dim=128, dropout=0.2)
+    model.load_state_dict(torch.load(SPATIAL_PATH, map_location="cpu", weights_only=True))
+    model.eval()
+
+    X_single    = torch.from_numpy(X_scaled[[target_idx]])          # (1, feat_dim)
+    nb_feat     = neighbor_features[[target_idx]]                   # (1, k, feat_dim)
+    nb_mask     = neighbor_mask[[target_idx]]                       # (1, k)
+
+    with torch.no_grad():
+        _, attn = model(X_single, nb_feat, nb_mask)
+
+    attn_np = attn.squeeze(0).numpy()      # shape (k,)
+    # Mask out padded neighbors
+    valid_mask = ~nb_mask.squeeze(0).numpy()  # True = real neighbor
+    attn_np = attn_np * valid_mask
+
+    # ── Map attention back to neighbor property IDs ────────────────
+    neighbor_property_ids = adj.get(prop_id, [])
+
+    results = []
+    for j, (nb_id, w) in enumerate(zip(neighbor_property_ids, attn_np)):
+        if j >= K_NEIGHBORS:
+            break
+        if nb_id not in id_to_row:
+            continue
+        nb_row = df.iloc[id_to_row[nb_id]]
+        results.append({
+            "id":             nb_id,
+            "attn_weight":    float(w),
+            "price":          float(nb_row.get("price", 0)),
+            "sqft_living":    int(nb_row.get("sqft_living", 0)),
+            "bedrooms":       int(nb_row.get("bedrooms", 0)),
+            "bathrooms":      float(nb_row.get("bathrooms", 0)),
+            "house_age":      int(nb_row.get("house_age", 0)),
+            "grade":          int(nb_row.get("grade", 0)),
+            "dist_seattle":   float(nb_row.get("dist_to_seattle_center_km", 0)),
+            "lat":            float(nb_row.get("lat", 0)),
+            "long":           float(nb_row.get("long", 0)),
+        })
+
+    # Sort by descending attention weight
+    results.sort(key=lambda x: x["attn_weight"], reverse=True)
+    results = results[:top_k]
+
+    return {
+        "neighbors":     results,
+        "subject_id":    prop_id,
+        "subject_idx":   target_idx,
+    }
+
 # ──────────────────────────────────────────────────────────────────────
 # Page Configuration & Design System
 # ──────────────────────────────────────────────────────────────────────
@@ -623,24 +740,127 @@ with tab_inspector:
                 - **House Age**: {int(prop['house_age'])}
                 """)
                 
-            # Local Neighborhood context
+            # ──────────────────────────────────────────────────────────
+            # Neighbor Explanation via Attention Weights
+            # ──────────────────────────────────────────────────────────
             st.markdown("---")
-            st.write("#### Local Neighborhood Context")
-            st.write("Compare this property with statistics of its nearest 5 neighbors in the KNN graph:")
-            
-            local_stats = {
-                "Metric": ["Price (USD)", "Sqft Living", "House Age", "Distance to Seattle Center (km)"],
-                "This Property": [
-                    f"${actual_p:,.0f}", 
-                    f"{int(prop['sqft_living']):,}", 
-                    f"{int(prop['house_age'])}", 
-                    f"{prop['dist_to_seattle_center_km']:.2f}"
-                ],
-                "Local KNN Mean": [
-                    f"${prop['local_price_mean']:,.0f}" if 'local_price_mean' in prop else "N/A",
-                    f"{int(prop['local_sqft_living_mean']):,}" if 'local_sqft_living_mean' in prop else "N/A",
-                    f"{int(prop['local_house_age_mean'])}" if 'local_house_age_mean' in prop else "N/A",
-                    f"{prop['local_distance_mean']:.2f}" if 'local_distance_mean' in prop else "N/A"
-                ]
-            }
-            st.table(pd.DataFrame(local_stats))
+            st.markdown("### 🧠 Top-5 Influential Neighbors (Attention Explanation)")
+            st.write(
+                "The **Spatial Attention model** uses learned attention weights to decide how much "
+                "each neighboring property influences the price prediction. The chart below shows "
+                "which neighbors were **most influential** and how similar they are to this property."
+            )
+
+            with st.spinner("Computing attention weights..."):
+                explanation = get_neighbor_explanations(str(search_id), top_k=5)
+
+            if explanation is None:
+                st.info(
+                    "Attention-based explanations require the Spatial Attention model "
+                    "(`models/spatial_attention_model.pth`). Please train the model first."
+                )
+            else:
+                neighbors = explanation["neighbors"]
+
+                if not neighbors:
+                    st.warning("No KNN neighbors found for this property in the graph.")
+                else:
+                    # ── Attention weight bar chart ──────────────────
+                    attn_df = pd.DataFrame([
+                        {"Neighbor ID": nb["id"], "Attention Weight": nb["attn_weight"]}
+                        for nb in neighbors
+                    ])
+
+                    fig_attn = px.bar(
+                        attn_df,
+                        x="Neighbor ID",
+                        y="Attention Weight",
+                        color="Attention Weight",
+                        color_continuous_scale=px.colors.sequential.Plasma,
+                        text="Attention Weight",
+                        title="Attention Weights — Higher = More Influential for This Prediction",
+                    )
+                    fig_attn.update_traces(
+                        texttemplate="%{text:.3f}",
+                        textposition="outside"
+                    )
+                    fig_attn.update_layout(
+                        showlegend=False,
+                        coloraxis_showscale=False,
+                        xaxis_title="Neighbor Property ID",
+                        yaxis_title="Attention Weight",
+                    )
+                    st.plotly_chart(fig_attn, width="stretch")
+
+                    # ── Neighbor detail table ───────────────────────
+                    st.markdown("#### 📋 Neighbor Property Details")
+
+                    nb_table_rows = []
+                    for rank, nb in enumerate(neighbors, 1):
+                        price_diff = nb["price"] - actual_p
+                        nb_table_rows.append({
+                            "Rank": f"#{rank}",
+                            "Neighbor ID":        nb["id"],
+                            "Attention Weight":   f"{nb['attn_weight']:.4f}",
+                            "Actual Price":       f"${nb['price']:,.0f}",
+                            "Vs. Subject (Δ$)":   f"{price_diff:+,.0f}",
+                            "Sqft Living":        f"{nb['sqft_living']:,}",
+                            "Bedrooms":           str(nb["bedrooms"]),
+                            "Bathrooms":          str(nb["bathrooms"]),
+                            "House Age":          str(nb["house_age"]),
+                            "Grade":              str(nb["grade"]),
+                        })
+
+                    nb_table = pd.DataFrame(nb_table_rows)
+                    st.dataframe(nb_table, width="stretch")
+
+                    # ── Mini-map: subject + neighbors ───────────────
+                    st.markdown("#### 🗺️ Spatial Distribution: Subject + Top Neighbors")
+
+                    map_points = [{
+                        "lat":   float(prop["lat"]),
+                        "long":  float(prop["long"]),
+                        "label": "🏠 Subject",
+                        "price": actual_p,
+                        "attn":  1.0,
+                        "type":  "Subject Property",
+                        "id":    str(search_id),
+                    }]
+                    for nb in neighbors:
+                        map_points.append({
+                            "lat":   nb["lat"],
+                            "long":  nb["long"],
+                            "label": f"Neighbor (w={nb['attn_weight']:.3f})",
+                            "price": nb["price"],
+                            "attn":  nb["attn_weight"],
+                            "type":  "KNN Neighbor",
+                            "id":    nb["id"],
+                        })
+
+                    map_pts_df = pd.DataFrame(map_points)
+
+                    fig_mini = px.scatter_map(
+                        map_pts_df,
+                        lat="lat",
+                        lon="long",
+                        color="type",
+                        size="attn",
+                        size_max=25,
+                        zoom=12,
+                        hover_name="id",
+                        hover_data={"price": ":$,.0f", "attn": ":.4f", "lat": False, "long": False, "type": False},
+                        color_discrete_map={
+                            "Subject Property": "#6366F1",
+                            "KNN Neighbor": "#F59E0B",
+                        },
+                        map_style="open-street-map",
+                        height=400,
+                        title="Subject (purple) & Top-5 Influential Neighbors (amber)",
+                    )
+                    fig_mini.update_layout(margin={"r":0,"t":30,"l":0,"b":0})
+                    st.plotly_chart(fig_mini, width="stretch")
+
+                    st.caption(
+                        "💡 The attention mechanism learned these neighbor weights during training. "
+                        "Larger markers = higher attention weight = more influence on the price prediction."
+                    )
