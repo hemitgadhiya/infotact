@@ -92,6 +92,28 @@ Simple linear regression or tree-based models cannot natively process these geo-
 
 ---
 
+## Model Evaluation & Spatial Dependency Proof
+
+To validate the hypothesis that incorporating local spatial relationships improves automated valuation, we evaluated the baseline tabular XGBoost model against two spatial architectures on a shared 20% holdout split (using a fixed `random_state=42`):
+1. **Spatial Attention Model**: A PyTorch neural network that aggregates characteristics and prices of the nearest $K$ neighboring properties using an attention mechanism.
+2. **GNN (Graph Attention Network)**: A PyTorch Geometric graph model utilizing attention-based graph convolutions over the constructed KNN proximity graph.
+
+### Evaluation Metrics Comparison
+
+| Model | MAPE | RMSE | Relative MAPE Improvement | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **XGBoost Baseline** (Tabular only) | 15.59% | $122,365 | Reference | Trained & Evaluated |
+| **GNN (Graph Attention Network)** | 15.29% | $117,625 | 1.92% | Trained & Evaluated |
+| **Spatial Attention Model (Manual)** | **13.77%** | **$113,751** | **11.65%** | Trained & Evaluated |
+
+### Verification & Key Findings
+
+- **Significant Improvement**: The **Spatial Attention Model** yields the lowest Mean Absolute Percentage Error (MAPE) of **13.77%**, a **11.65% relative improvement** over the tabular XGBoost baseline's **15.59%**.
+- **Spatial Value Add**: The spatial dependencies (represented by neighbor attributes and their physical proximity) provide crucial contextual features. Tabular-only models treat each listing in isolation, failing to capture local pricing spillovers and neighborhood-level micro-trends (e.g., renovations/gentrification in the vicinity). By aggregating neighbor characteristics, the spatial attention mechanism successfully reduces systematic pricing errors.
+- **Reference Reports**: For a deeper neighborhood-by-neighborhood breakdown of where tabular baselines fail and how spatial modeling addresses them, see [XGBoost Baseline Limitations](file:///c:/Users/hemit/OneDrive/Desktop/project%203/infotact/project-3-geospatial-real-estate-valuation/docs/baseline_limitations_by_neighborhood.md) and [Detailed Model Comparison](file:///c:/Users/hemit/OneDrive/Desktop/project%203/infotact/project-3-geospatial-real-estate-valuation/docs/model_comparison.md).
+
+---
+
 ## Recommended Tech Stack
 
 | Layer | Tools |
@@ -128,7 +150,7 @@ Simple linear regression or tree-based models cannot natively process these geo-
 - [x] KNN neighborhood graph construction
 - [x] Spatial embeddings for localized context
 - [x] GNN or attention-based valuation model
-- [ ] MAPE comparison: spatial model vs. XGBoost baseline
+- [x] MAPE comparison: spatial model vs. XGBoost baseline
 - [ ] Top-5 influential neighbor explanations per prediction
 - [ ] Streamlit geospatial dashboard
 - [ ] Spatial heatmaps for investment strategist persona
