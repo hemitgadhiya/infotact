@@ -13,6 +13,7 @@ from src.model_training import train_valuation_model  # pyrefly: ignore
 from src.graph_construction import build_knn_graph  # pyrefly: ignore
 from src.spatial_embeddings import generate_spatial_embeddings  # pyrefly: ignore
 from train_spatial_model import train as train_spatial_model  # pyrefly: ignore
+from train_gnn_model import train as train_gnn_model  # pyrefly: ignore
 from compare_models import main as compare_models_main  # pyrefly: ignore
 
 def main():
@@ -108,8 +109,12 @@ def main():
     print("\nTraining Spatial Attention model (PyTorch)...")
     train_spatial_model()
     
+    # 6.5. Train GNN model (PyTorch Geometric GAT)
+    print("\nTraining GNN model (PyTorch Geometric)...")
+    train_gnn_model()
+    
     # 7. Compare models
-    print("\nComparing baseline and spatial models...")
+    print("\nComparing baseline, spatial, and GNN models...")
     compare_models_main()
     
     # 5. Print verification statistics
@@ -140,6 +145,7 @@ def main():
     
     # Verify file existence
     spatial_model_path = os.path.join(project_root, 'models', 'spatial_attention_model.pth')
+    gat_model_path = os.path.join(project_root, 'models', 'gat_model.pth')
     model_comparison_path = os.path.join(project_root, 'docs', 'model_comparison.md')
     print(f"\nChecking outputs:")
     print(f"  Cleaned GeoJSON:    {os.path.exists(processed_geojson_path)} ({os.path.getsize(processed_geojson_path) / 1024 / 1024:.2f} MB)")
@@ -148,6 +154,7 @@ def main():
     print(f"  Engineered CSV:     {os.path.exists(engineered_csv_path)} ({os.path.getsize(engineered_csv_path) / 1024 / 1024:.2f} MB)")
     print(f"  KNN Graph Edges:    {os.path.exists(knn_edges_path)} ({os.path.getsize(knn_edges_path) / 1024 / 1024:.2f} MB)")
     print(f"  Spatial Model Pth:  {os.path.exists(spatial_model_path)} ({os.path.getsize(spatial_model_path) / 1024 / 1024:.2f} MB if it exists else 0 MB)")
+    print(f"  GNN Model Pth:      {os.path.exists(gat_model_path)} ({os.path.getsize(gat_model_path) / 1024 / 1024:.2f} MB if it exists else 0 MB)")
     print(f"  Comparison Report:  {os.path.exists(model_comparison_path)}")
     print("\nVerification successful! Pipeline ran smoothly.")
 
