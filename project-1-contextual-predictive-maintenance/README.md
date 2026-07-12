@@ -68,10 +68,11 @@ The goal is to accurately predict mechanical failures **before they happen** usi
 - Train **LightGBM classifier** to predict impending faults
 - Optimize for **Macro F1**
 
-### Week 4: Noise Sensitivity Analysis & Threshold Tuning
+### Week 4: Noise Sensitivity Analysis, Threshold Tuning & Explainability
 - Inject **synthetic noise** into the test dataset to characterize model robustness
 - Plot **Precision-Recall curves**
 - Tune decision threshold to balance **false alarms vs. missed maintenance windows**
+- Generate **SHAP-style feature importance** views for reliability engineers
 - Document the full pipeline on GitHub
 
 ---
@@ -128,13 +129,31 @@ This external context is generated with a fixed random seed so it is reproducibl
 
 ## Deliverables Checklist
 
-- [ ] Contextual data fusion pipeline (IoT + external APIs)
-- [ ] Feature engineering with rolling window statistics
-- [ ] Ablation study (with vs. without external features)
-- [ ] LightGBM + SMOTE-in-CV classification pipeline
-- [ ] Macro F1 >= 0.85 on evaluation set
-- [ ] Noise sensitivity analysis report
-- [ ] Precision-Recall curves and threshold tuning
-- [ ] SHAP / feature importance for reliability engineers
+- [x] Contextual data fusion pipeline (IoT + external APIs)
+- [x] Feature engineering with rolling window statistics
+- [x] Ablation study (with vs. without external features)
+- [x] LightGBM + SMOTE-in-CV classification pipeline
+- [x] Macro F1 >= 0.85 on evaluation set
+- [x] Noise sensitivity analysis report
+- [x] Precision-Recall curves and threshold tuning
+- [x] SHAP / feature importance for reliability engineers
 - [ ] Predictive dashboard concept (machines > 80% failure risk in 7 days)
-- [ ] 4 weeks of incremental GitHub commits with linked issues
+- [x] 4 weeks of incremental GitHub commits with linked issues
+
+## Reproducible Workflow
+
+1. Install the project dependencies:
+   - `pip install -r requirements.txt`
+2. Run the noise robustness analysis:
+   - `python scripts/noise_sensitivity_analysis.py`
+3. Run the precision-recall and threshold selection workflow:
+   - `python scripts/plot_precision_recall_thresholds.py`
+4. Generate SHAP-style explainability outputs:
+   - `python scripts/generate_shap_explanations.py`
+5. Review the generated artifacts in the `reports/` directory.
+
+## Generated Outputs
+
+- Noise robustness results: `reports/noise_sensitivity_analysis.md` and `reports/noise_sensitivity_results.csv`
+- PR curve and threshold report: `reports/precision_recall_threshold_report.md`
+- SHAP summary outputs: `reports/shap_feature_importance.csv`, `reports/shap_feature_importance.png`, and `reports/shap_explainability_report.md`
